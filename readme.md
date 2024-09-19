@@ -25,7 +25,7 @@ python inference_uncond.py --num-samples 10 --ddim-steps 50 --save-dir save_unco
 ### For Conditional Generation
 1. Download models for hyperspectral image synthesis from [GoogleDrive](https://drive.google.com/file/d/1bBSRn5uyrGcsXWzu4CTzLzO3MH-XYGct/view?usp=drive_link) and put it to `checkpoints`. 
 2. Download files from [huggingface](https://huggingface.co/openai/clip-vit-large-patch14) and put the files to `data_prepare/annotator/ckpts/clip/clip-vit-large-patch14`, or download  the `clip` folder from [BaiduNetdisk](https://pan.baidu.com/s/1_rPPuJei_aklAFT-a0KZ0w?pwd=n86f) (code:n86f) and put it to `data_prepare/annotator/ckpts`.
-3. Running the following script and the generated HSIs will be saved at `save_cond`. Available conditions include *hed*, *mlsd*, *sketch*, *segmentation* (models supporting content and text will be released soon). Example images and conditions are provided in `data_prepare/candidates` and `data_prepare/conditions` respectively.
+3. Running the following script and the generated HSIs will be saved at `save_cond`. Available conditions include *hed*, *mlsd*, *sketch*, *segmentation*, *content* and *text*. Example images and conditions are provided in `data_prepare/candidates` and `data_prepare/conditions` respectively.
 ```
 # hed
 python inference_single.py --conditions hed --fns f4 --condition-dir data_prepare/conditions --save-dir save_cond
