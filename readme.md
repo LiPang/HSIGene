@@ -6,8 +6,8 @@ Official implementation of HSIGene: A Foundation Model For Hyperspectral Image G
 
 ## Dependencies and Installation
 ```bash
-conda create -n hisdiff python=3.9
-conda activate hisdiff
+conda create -n hsigene python=3.9
+conda activate hsigene
 pip install -r requirements.txt
 ```
 
