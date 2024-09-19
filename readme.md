@@ -1,7 +1,5 @@
 # HSIGene: A Foundation Model For Hyperspectral Image Generation
 
----
-
 Official implementation of HSIGene: A Foundation Model For Hyperspectral Image Generation.
 
 ### [Paper (ArXiv)]() 
