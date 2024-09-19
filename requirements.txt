@@ -6,7 +6,7 @@ einops==0.8.0
 lmdb==1.4.1
 matplotlib==3.7.2
 mc==0.0
-numpy==2.1.1
+numpy==1.24.4
 omegaconf==2.3.0
 onnx==1.16.2
 open_clip_torch==2.24.0
