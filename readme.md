@@ -22,7 +22,7 @@ pip install -r requirements.txt
 python inference_uncond.py --num-samples 10 --ddim-steps 50 --save-dir save_uncond
 ```
 
-### For conditional Generation
+### For Conditional Generation
 1. Download models for hyperspectral image synthesis from [GoogleDrive](https://drive.google.com/file/d/1bBSRn5uyrGcsXWzu4CTzLzO3MH-XYGct/view?usp=drive_link) and put it to `checkpoints`. 
 2. Download files from [huggingface](https://huggingface.co/openai/clip-vit-large-patch14) and put the files to `data_prepare/annotator/ckpts/clip/clip-vit-large-patch14`, or download  the `clip` folder from [BaiduNetdisk](https://pan.baidu.com/s/1_rPPuJei_aklAFT-a0KZ0w?pwd=n86f) (code:n86f) and put it to `data_prepare/annotator/ckpts`.
 3. Running the following script and the generated HSIs will be saved at `save_cond`. Available conditions include *hed*, *mlsd*, *sketch*, *segmentation* (models supporting content and text will be released soon). Example images and conditions are provided in `data_prepare/candidates` and `data_prepare/conditions` respectively.
@@ -49,7 +49,7 @@ python inference_single.py --conditions text --prompt Wasteland --fns Wasteland 
 python inference_single.py --conditions 'mlsd segmentation' --fns c2 --condition-dir data_prepare/conditions --save-dir save_cond
 ```
 
-### Prepare your own conditions
+### Prepare Your Own Conditions
 To prepare the conditions, you have to put the original images into `data_prepare/candidates`. In addition, models for condition generation could be downloaded automatically or manually downloaded from [BaiduNetdisk](https://pan.baidu.com/s/1K1Y__blA6uJVV9l1QG7QvQ?pwd=98f1) (code:98f1) and need to be put to `data_prepare/annotator/ckpts`. 
 
 Then, you can obtain you own conditions simply by:
