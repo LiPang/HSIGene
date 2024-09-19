@@ -14,7 +14,7 @@ pip install -r requirements.txt
 ## Usage
 ### For Unconditional Generation
 
-1. Download models for hyperspectral image synthesis from [GoogleDrive](https://drive.google.com/file/d/1bBSRn5uyrGcsXWzu4CTzLzO3MH-XYGct/view?usp=drive_link) or [BaiduNetdisk]() and put it to `checkpoints`.
+1. Download models for hyperspectral image synthesis from [GoogleDrive](https://drive.google.com/file/d/1bBSRn5uyrGcsXWzu4CTzLzO3MH-XYGct/view?usp=drive_link) and put it to `checkpoints`.
 
 2. Running the following script and the generated HSIs will be saved at `save_uncond`. 
 
