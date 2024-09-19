@@ -28,7 +28,6 @@ scipy==1.14.1
 segment_anything==1.0
 skimage==0.0
 tensorboardX==2.6.2
-tensorboardX==2.6.2.2
 tifffile==2023.8.12
 timm==0.9.5
 torch==2.1.2+cu118
@@ -39,5 +38,4 @@ transformers==4.28.0
 turbojpeg==0.0.2
 xformers==0.0.23+cu118
 yapf==0.40.2
-~orch==2.0.1
-~pencv_python==4.9.0.80
+
