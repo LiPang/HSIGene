@@ -110,7 +110,7 @@ metadata_control=torch.from_numpy(metadata_emb.copy()).float().cuda().clone().sq
 model = create_model('configs/inference.yaml').cpu()
 state_dict = load_state_dict('checkpoints/last.ckpt', location='cpu')
 
-model.load_state_dict(state_dict, strict=True)
+model.load_state_dict(state_dict, strict=False)
 model = model.cuda()
 model = model.eval()
 
