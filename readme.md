@@ -1,6 +1,6 @@
 # HSIGene: A Foundation Model For Hyperspectral Image Generation
 
-### [Paper (ArXiv)]()
+### [Paper (ArXiv)](https://arxiv.org/abs/2409.12470)
 
 Official implementation of HSIGene: A Foundation Model For Hyperspectral Image Generation.
 
@@ -63,3 +63,15 @@ python data_prepare.py
 ## Contact
 If you have any question, please email `pp2373886592@gmail.com`
 
+## Citation
+```
+@misc{pang2024hsigenefoundationmodelhyperspectral,
+      title={HSIGene: A Foundation Model For Hyperspectral Image Generation}, 
+      author={Li Pang and Datao Tang and Shuang Xu and Deyu Meng and Xiangyong Cao},
+      year={2024},
+      eprint={2409.12470},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2409.12470}, 
+}
+```
