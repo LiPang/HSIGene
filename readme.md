@@ -4,7 +4,6 @@
 
 Official implementation of HSIGene: A Foundation Model For Hyperspectral Image Generation.
 
-<img src="./figures/syn.jpg" alt="results" width="600">
 
 ## Dependencies and Installation
 ```bash
