@@ -92,7 +92,7 @@ class FrozenCLIPEmbedder(AbstractEncoder):
         "pooled",
         "hidden"
     ]
-    def __init__(self, version="/data01/pl/HSITask/checkpoints/CLIP-ViT-L-14-huggingface", device="cuda", max_length=77,
+    def __init__(self, version="data_prepare/annotator/ckpts/clip/clip-vit-large-patch14", device="cuda", max_length=77,
                  freeze=True, layer="last", layer_idx=None):  # clip-vit-base-patch32
         super().__init__()
         assert layer in self.LAYERS
@@ -196,7 +196,7 @@ class FrozenOpenCLIPEmbedder(AbstractEncoder):
 
 
 class FrozenCLIPT5Encoder(AbstractEncoder):
-    def __init__(self, clip_version="/data1/pangli/HSISythesis/ControllGeneration/annotator/ckpts/clip/clip-vit-large-patch14/", t5_version="google/t5-v1_1-xl", device="cuda",
+    def __init__(self, clip_version="data_prepare/annotator/ckpts/clip/clip-vit-large-patch14/", t5_version="google/t5-v1_1-xl", device="cuda",
                  clip_max_length=77, t5_max_length=77):
         super().__init__()
         self.clip_encoder = FrozenCLIPEmbedder(clip_version, device, max_length=clip_max_length)
