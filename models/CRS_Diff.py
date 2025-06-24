@@ -1,20 +1,24 @@
 import einops
 import torch
+import torch.nn.functional as F
 
 from einops import rearrange, repeat
 from torchvision.utils import make_grid
+from peft import LoraConfig, get_peft_model
 
 from ldm.models.diffusion.ddpm import LatentDiffusion
 from ldm.util import log_txt_as_img, instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
+from ldm.models.diffusion.ddpm import disabled_train
 
 
 class CRSControlNet(LatentDiffusion):
-
-    def __init__(self, mode, local_control_config=None, global_content_control_config=None,global_text_control_config=None,metadata_config=None, *args, **kwargs):
+    def __init__(self, mode, global_strength=1.0, text_strength=1.0, local_control_config=None, global_content_control_config=None,global_text_control_config=None,metadata_config=None, use_lora=False, lora_r=16, lora_alpha=16, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        assert mode in ['local', 'global', 'CRS']
+        assert mode in ['local', 'global', 'CRS', 'UNet']
         self.mode = mode
+        self.global_strength = global_strength
+        self.text_strength = text_strength
         # if self.mode in ['local', 'CRS']:
         #     self.local_adapter = instantiate_from_config(local_control_config)
         #     self.local_control_scales = [1.0] * 5
@@ -27,6 +31,12 @@ class CRSControlNet(LatentDiffusion):
         self.metadata_emb=instantiate_from_config(metadata_config).cuda()
         self.global_content_adapter = instantiate_from_config(global_content_control_config)
         self.global_text_adapter = instantiate_from_config(global_text_control_config)
+
+        # LoRA 在加载预训练权重后再注入，避免 load_state_dict 的键值不匹配。
+        self._want_lora = use_lora
+        self._lora_r = lora_r
+        self._lora_alpha = lora_alpha
+        self.use_lora = False  # 尚未真正注入 LoRA
 
 
     @torch.no_grad()
@@ -56,33 +66,16 @@ class CRSControlNet(LatentDiffusion):
             metadata=metadata.to(self.device).to(memory_format=torch.contiguous_format).float()
         return x, dict(c_crossattn=[c], metadata=[metadata],local_control=[local_conditions], global_control=[global_conditions])
 
-    def apply_model(self, x_noisy, t, cond, metadata=None,global_strength=1,metadata_strength=1, *args, **kwargs):
+    def apply_model(self, x_noisy, t, cond, metadata=None,global_strength=None, text_strength=None, metadata_strength=1, *args, **kwargs):
         assert isinstance(cond, dict)
         if metadata==None:
             metadata=cond['metadata']
+        
+        current_global_strength = global_strength if global_strength is not None else self.global_strength
+        current_text_strength = text_strength if text_strength is not None else self.text_strength
+
         diffusion_model = self.model.diffusion_model
         cond_txt = torch.cat(cond['c_crossattn'], 1)
-
-        # if self.mode in ['global', 'CRS']:
-        #     assert cond['global_control'][0] != None
-        #     metadata=self.metadata_emb(metadata)
-        #     # content_t,meta_t=cond['global_control'][0].chunk(2,dim=1)
-        #     content_t = cond['global_control'][0]
-        #     global_control = self.global_content_adapter(content_t)
-        #     cond_txt = torch.cat([cond_txt, global_strength*global_control], dim=1)
-        #
-        # if self.mode in ['local', 'CRS']:
-        #     assert cond['local_control'][0] != None
-        #     local_control = torch.cat(cond['local_control'], 1)
-        #     local_control = self.local_adapter(x=x_noisy, timesteps=t, context=cond_txt, local_conditions=local_control)
-        #     local_control = [c * scale for c, scale in zip(local_control, self.local_control_scales)]
-        #
-        # if self.mode == 'global':
-        #     eps = diffusion_model(x=x_noisy, timesteps=t,metadata=metadata, context=cond_txt)
-        # elif self.mode == 'local':
-        #     eps = diffusion_model(x=x_noisy, timesteps=t, metadata=metadata,context=cond_txt, local_control=local_control)
-        # elif self.mode == 'CRS':
-        #     eps = diffusion_model(x=x_noisy, timesteps=t, metadata=metadata,context=cond_txt, local_control=local_control,meta=True)
 
         assert cond['global_control'][0] != None
         metadata = self.metadata_emb(metadata)
@@ -90,7 +83,12 @@ class CRSControlNet(LatentDiffusion):
         content_t = cond['global_control'][0]
         global_control = self.global_content_adapter(content_t)
         cond_txt = self.global_text_adapter(cond_txt)
-        cond_txt = torch.cat([cond_txt, global_strength * global_control], dim=1)
+
+        # Normalize and scale features independently for stability
+        cond_txt = F.normalize(cond_txt, p=2, dim=-1) * current_text_strength
+        global_control = F.normalize(global_control, p=2, dim=-1) * current_global_strength
+        
+        cond_txt = torch.cat([cond_txt, global_control], dim=1)
 
         assert cond['local_control'][0] != None
         local_control = torch.cat(cond['local_control'], 1)
@@ -123,9 +121,14 @@ class CRSControlNet(LatentDiffusion):
         N = min(z.shape[0], N)
         n_row = min(z.shape[0], n_row)
         log["reconstruction"] = self.decode_first_stage(z)
-        log["local_control"] = c_cat * 2.0 - 1.0
-        log["conditioning"] = log_txt_as_img((512, 512), batch[self.cond_stage_key], size=16)
-        log["origin"] = batch['jpg'].permute(0, 3, 1, 2)[:N]
+        # Log local image condition (e.g., canny edge map)
+        log["local_image_condition"] = c_cat * 2.0 - 1.0
+        # Log text condition
+        log["text_condition"] = log_txt_as_img((512, 512), batch[self.cond_stage_key], size=16)
+        # Log source for global image condition (CLIP feature is extracted from this)
+        log["global_condition_source"] = batch['jpg'].permute(0, 3, 1, 2)[:N] * \
+                                         (batch['global_conditions'].max(-1)[0] > 0)[:N].view(-1, 1, 1, 1)
+
         if plot_diffusion_rows:
             diffusion_row = list()
             z_start = z[:n_row]
@@ -182,22 +185,59 @@ class CRSControlNet(LatentDiffusion):
 
     def configure_optimizers(self):
         lr = self.learning_rate
-        params = []
+        params, params_count = [], 0
         if self.mode in ['local']:
             params += list(self.local_adapter.parameters())
+            print(f'Training local_adapter {sum(p.numel() for p in params) / 1e6 - params_count}M')
+            params_count = sum(p.numel() for p in params) / 1e6
         if self.mode in ['global']:
-            params += list(self.metadata_emb.parameters())
             params += list(self.global_text_adapter.parameters())
+            params += list(self.cond_stage_model.parameters())
             params += list(self.global_content_adapter.parameters())
+            print(f'Training global_adapter {sum(p.numel() for p in params) / 1e6 - params_count}M')
+            params_count = sum(p.numel() for p in params) / 1e6
         if self.mode in ['CRS']:
             params += list(self.local_adapter.parameters())
-            params += list(self.metadata_emb.parameters())
             params += list(self.global_text_adapter.parameters())
             params += list(self.global_content_adapter.parameters())
-        if self.sd_unlocked_all:
-            params += list(self.model.diffusion_model.parameters())
+        if self.use_lora:
+            print("Training LoRA parameters.")
+            lora_params = []
+            for n, p in self.model.diffusion_model.named_parameters():
+                if "lora_" in n:
+                    lora_params.append(p)
+            params += lora_params
+            print(f'Training LoRA params {sum(p.numel() for p in lora_params) / 1e6}M')
+        elif not self.sd_locked:
+            # params += list(self.model.diffusion_model.output_blocks.parameters())
+            params += list(self.model.diffusion_model.out.parameters())
+            print(f'Training diffusion_model {sum(p.numel() for p in params) / 1e6 - params_count}M')
+            params_count = sum(p.numel() for p in params) / 1e6
         opt = torch.optim.AdamW(params, lr=lr)
+        # self.reset_requires_grad([opt])
         return opt
+
+
+    def reset_requires_grad(self, optimizers):
+        if not optimizers:
+            return
+
+        trainable_set = set()
+        for opt in optimizers:
+            for group in opt.param_groups:
+                for p in group['params']:
+                    trainable_set.add(p)
+
+        for module in self.modules():
+            module_params = list(module.parameters())
+            if not module_params:
+                continue
+
+            if not any(p in trainable_set for p in module_params):
+                module.eval()
+                module.train = disabled_train
+                for p in module_params:
+                    p.requires_grad = False
 
     def low_vram_shift(self, is_diffusing):
         if is_diffusing:
@@ -205,7 +245,6 @@ class CRSControlNet(LatentDiffusion):
             if self.mode in ['local', 'CRS']:
                 self.local_adapter = self.local_adapter.cuda()
             if self.mode in ['global', 'CRS']:
-                # self
                 self.global_text_adapter = self.global_text_adapter.cuda()
                 self.global_content_adapter = self.global_content_adapter.cuda()
             self.first_stage_model = self.first_stage_model.cpu()
@@ -213,10 +252,35 @@ class CRSControlNet(LatentDiffusion):
         else:
             self.model = self.model.cpu()
             if self.mode in ['local', 'CRS']:
-
                 self.local_adapter = self.local_adapter.cpu()
             if self.mode in ['global', 'CRS']:
                 self.global_text_adapter = self.global_text_adapter.cpu()
                 self.global_content_adapter = self.global_content_adapter.cpu()
             self.first_stage_model = self.first_stage_model.cuda()
             self.cond_stage_model = self.cond_stage_model.cuda()
+
+    def enable_lora(self, r: int | None = None, alpha: int | None = None,
+                    target_modules=None, dropout: float = 0.1, bias: str = "none"):
+        """Inject LoRA layers after calling load_state_dict."""
+        if self.use_lora:
+            print("LoRA already enabled, skipping duplicate injection.")
+            return
+
+        r = r or self._lora_r
+        alpha = alpha or self._lora_alpha
+
+        print(f"[LoRA] Injecting LoRA into UNet (diffusion_model), r={r}, alpha={alpha}")
+        lora_config = LoraConfig(
+            r=r,
+            lora_alpha=alpha,
+            target_modules=target_modules,
+            lora_dropout=dropout,
+            bias=bias,
+        )
+        
+        # Wrap the entire UNet model (diffusion_model), peft will automatically find target_modules
+        peft_model = get_peft_model(self.model.diffusion_model, lora_config)
+        peft_model.print_trainable_parameters()
+        self.model.diffusion_model = peft_model
+        
+        self.use_lora = True

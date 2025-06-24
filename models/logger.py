@@ -30,7 +30,7 @@ class ImageLogger(Callback):
     def log_local(self, save_dir, split, images, global_step, current_epoch, batch_idx):
         root = os.path.join(save_dir, "image_log", split)
         for k in images:
-            if k == 'local_control':
+            if 'local' in k:
                 _, _, h, w = images[k].shape
                 if h == w == 1:
                     continue

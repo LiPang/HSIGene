@@ -35,8 +35,8 @@ class GlobalTextAdapter(nn.Module):
         self.in_dim = in_dim
         dim_out1 = in_dim*2
         dim_out2 = in_dim
-        self.ff1 = FeedForward(in_dim, dim_out=dim_out1, mult=2, glu=True, dropout=0.1)
-        self.ff2 = FeedForward(dim_out1, dim_out=dim_out2, mult=4, glu=True, dropout=0.3)
+        self.ff1 = FeedForward(in_dim, dim_out=dim_out1, mult=2, glu=True, dropout=0.0)
+        self.ff2 = FeedForward(dim_out1, dim_out=dim_out2, mult=4, glu=True, dropout=0.0)
         self.norm1 = nn.LayerNorm(in_dim)
         self.norm2 = nn.LayerNorm(dim_out1)
         # self.positional_encoding = FixedPositionalEncoding(d_model=in_dim, max_len=max_len)
@@ -48,7 +48,7 @@ class GlobalTextAdapter(nn.Module):
         return x
 
 class LookUpTable(nn.Module):
-    def __init__(self, channel, hidden_channel=128, num_candidate=32, w1=0.1, w2=0.9):
+    def __init__(self, channel, hidden_channel=128, num_candidate=32, w1=0.5, w2=0.5):
         super(LookUpTable, self).__init__()
         self.w1, self.w2 = w1, w2 # input lookup
         self.linear_q = nn.Linear(channel, hidden_channel)
@@ -58,12 +58,15 @@ class LookUpTable(nn.Module):
         self.candidates = nn.Parameter(torch.randn((num_candidate, hidden_channel)))
 
     def forward(self, x):
-        q = self.linear_q(x)
-        k = self.linear_k(self.candidates)
-        v = self.linear_v(self.candidates)
-        attn = (q @ k.T) * (q.shape[1]**(-0.5))
-        attn = nn.functional.softmax(attn, dim=-1)
-        x_out = self.w1 * x + self.w2 * (attn @ v)
+        if x.abs().sum() == 0:
+            x_out = x
+        else:
+            q = self.linear_q(x)
+            k = self.linear_k(self.candidates)
+            v = self.linear_v(self.candidates)
+            attn = (q @ k.T) * (q.shape[1]**(-0.5))
+            attn = nn.functional.softmax(attn, dim=-1)
+            x_out = self.w1 * x + self.w2 * (attn @ v)
 
         return x_out
 

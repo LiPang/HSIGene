@@ -77,6 +77,7 @@ class DDIMSampler(object):
                dynamic_threshold=None,
                ucg_schedule=None,
                global_strength=None,
+               text_strength=None,
                **kwargs
                ):
         if conditioning is not None:
@@ -90,7 +91,7 @@ class DDIMSampler(object):
             elif isinstance(conditioning, list):
                 for ctmp in conditioning:
                     if ctmp.shape[0] != batch_size:
-                        print(f"Warning: Got {cbs} conditionings but batch-size is {batch_size}")
+                        print(f"Warning: Got conditionings but batch-size is {batch_size}")
 
             else:
                 if conditioning.shape[0] != batch_size:
@@ -119,7 +120,8 @@ class DDIMSampler(object):
                                                     unconditional_conditioning=unconditional_conditioning,
                                                     dynamic_threshold=dynamic_threshold,
                                                     ucg_schedule=ucg_schedule,
-                                                    global_strength=global_strength
+                                                    global_strength=global_strength,
+                                                    text_strength=text_strength
                                                     )
         return samples, intermediates
 
@@ -130,7 +132,7 @@ class DDIMSampler(object):
                       mask=None, x0=None, img_callback=None, log_every_t=100,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
                       unconditional_guidance_scale=1., unconditional_conditioning=None, dynamic_threshold=None,
-                      ucg_schedule=None,global_strength=None):
+                      ucg_schedule=None,global_strength=None, text_strength=None):
         device = self.model.betas.device
         b = shape[0]
         if x_T is None:
@@ -170,7 +172,7 @@ class DDIMSampler(object):
                                       corrector_kwargs=corrector_kwargs,
                                       unconditional_guidance_scale=unconditional_guidance_scale,
                                       unconditional_conditioning=unconditional_conditioning,
-                                      dynamic_threshold=dynamic_threshold,global_strength=global_strength)
+                                      dynamic_threshold=dynamic_threshold,global_strength=global_strength,text_strength=text_strength)
             img, pred_x0 = outs
             if callback: callback(i)
             if img_callback: img_callback(pred_x0, i)
@@ -185,17 +187,16 @@ class DDIMSampler(object):
     def p_sample_ddim(self, x, c, t, index,metadata, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
                       unconditional_guidance_scale=1., unconditional_conditioning=None,
-                      dynamic_threshold=None,global_strength=None):
+                      dynamic_threshold=None,global_strength=None, text_strength=None):
         b, *_, device = *x.shape, x.device
 
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
-            # model_output = self.model.apply_model(x, t, c)
-            model_output = self.model.apply_model(x, t, c, metadata, global_strength)
+            model_output = self.model.apply_model(x, t, c, metadata, global_strength, text_strength)
         else:
             # while len(metadata)==1:
             #     metadata=metadata[0]
-            model_t = self.model.apply_model(x, t, c, metadata, global_strength)
-            model_uncond = self.model.apply_model(x, t, unconditional_conditioning, metadata,global_strength)
+            model_t = self.model.apply_model(x, t, c, metadata, global_strength, text_strength)
+            model_uncond = self.model.apply_model(x, t, unconditional_conditioning, metadata,global_strength, text_strength)
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
         if self.model.parameterization == "v":
