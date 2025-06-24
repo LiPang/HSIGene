@@ -92,12 +92,10 @@ class FrozenCLIPEmbedder(AbstractEncoder):
         "pooled",
         "hidden"
     ]
-    def __init__(self, version="data_prepare/annotator/ckpts/clip/clip-vit-large-patch14", device="cuda", max_length=77,
+    def __init__(self, version="/data01/pl/HSITask/checkpoints/CLIP-ViT-L-14-huggingface", device="cuda", max_length=77,
                  freeze=True, layer="last", layer_idx=None):  # clip-vit-base-patch32
         super().__init__()
         assert layer in self.LAYERS
-        import os
-        version = os.path.join(os.getcwd(), version)
         self.tokenizer = CLIPTokenizer.from_pretrained(version)
         self.transformer = CLIPTextModel.from_pretrained(version)
         self.device = device
