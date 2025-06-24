@@ -41,10 +41,10 @@ python inference_single.py --conditions sketch --fns a2 --condition-dir data_pre
 python inference_single.py --conditions segmentation --fns w5 --condition-dir data_prepare/conditions --save-dir save_cond
 
 # content
-python inference_single.py --conditions content --fns a1 --condition-dir data_prepare/conditions --save-dir save_cond
+python inference_single.py --conditions content --fns a1 --condition-dir data_prepare/conditions --save-dir save_cond --global-strength 20.0
 
 # text
-python inference_single.py --conditions text --prompt Wasteland --fns Wasteland --save-dir save_cond
+python inference_single.py --conditions text --prompt Wasteland --fns Wasteland --save-dir save_cond --text-strength 10.0
 
 # composable conditions
 python inference_single.py --conditions 'mlsd segmentation' --fns c2 --condition-dir data_prepare/conditions --save-dir save_cond
